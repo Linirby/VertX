@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 
 #include "lili2d/geometry/shapes2d.hpp"
 #include "lili2d/geometry/vec2.hpp"
