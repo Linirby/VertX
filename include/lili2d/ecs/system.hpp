@@ -1,16 +1,9 @@
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
-#include <future>
-#include <memory>
-#include <tuple>
-#include <vector>
 
 #include "lili2d/core/thread_pool.hpp"
-#include "lili2d/ecs/component_pool.hpp"
 #include "lili2d/ecs/ecs_registry.hpp"
-#include "lili2d/ecs/ecs_view.hpp"
 #include "lili2d/ecs/entity.hpp"
 
 namespace lili {

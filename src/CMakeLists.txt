@@ -1,8 +1,9 @@
 add_subdirectory(core)
 add_subdirectory(ecs)
+add_subdirectory(entities)
+add_subdirectory(physics)
 add_subdirectory(render)
 add_subdirectory(world)
-add_subdirectory(entities)
 
 add_library(Lili2D SHARED)
 add_library(lili::Lili2D ALIAS Lili2D)
@@ -12,9 +13,10 @@ target_link_libraries(Lili2D
     PRIVATE
         lili_core
         lili_ecs
+        lili_entities
+        lili_physics
         lili_render
         lili_world
-        lili_entities
     PUBLIC
         SDL3::SDL3
         SDL3_image::SDL3_image
