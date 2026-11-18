@@ -1,4 +1,5 @@
 #include "lili2d/physics/dynamic_body_system.hpp"
+#include <algorithm>
 
 namespace lili {
 
@@ -11,7 +12,25 @@ DynamicBodySystem::updateEntity(
     float dt
 )
 {
-    // TODO: update entity logic (forces + impulse add to velocity and reset)
+    // TODO: check if the algo is working
+    vel_comp.x += dyn_body_comp.force.x;
+    vel_comp.y += dyn_body_comp.force.y;
+
+    float slow_force = 0.0f;
+    if (dyn_body_comp.grounded)
+        slow_force =
+            std::max(dyn_body_comp.mass * dyn_body_comp.contact_friction, 0.0f);
+    else
+        slow_force =
+            std::max(dyn_body_comp.mass * dyn_body_comp.resistance, 0.0f);
+    if (dyn_body_comp.force.x > 0 && slow_force != 0.0f)
+        dyn_body_comp.force.x -= slow_force * dt;
+    else if (dyn_body_comp.force.x < 0 && slow_force != 0.0f)
+        dyn_body_comp.force.x += slow_force * dt;
+
+    vel_comp.x += dyn_body_comp.impulse.x;
+    vel_comp.y += dyn_body_comp.impulse.y;
+    dyn_body_comp.impulse = {};
 }
 
 void
