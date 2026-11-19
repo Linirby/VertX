@@ -4,6 +4,7 @@
 
 #include "lili2d/core/thread_pool.hpp"
 #include "lili2d/ecs/ecs_registry.hpp"
+#include "lili2d/ecs/ecs_view.hpp"
 #include "lili2d/ecs/entity.hpp"
 
 namespace lili {
@@ -59,7 +60,7 @@ public:
     void
     run(ECSRegistry& registry, float dt, ThreadPool* thread_pool) override
     {
-        registry.view<Components...>().parallelEach(
+        ECSView<Components...>(registry).parallelEach(
             thread_pool,
             [this, &registry, dt](Entity entity, Components&... comps) {
                 updateEntity(registry, entity, comps..., dt);

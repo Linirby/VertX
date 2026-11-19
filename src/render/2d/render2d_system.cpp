@@ -45,7 +45,7 @@ Render2DSystem::render(
     pushLines(registry, the_white_pixel);
     pushTexts(registry, default_font);
 
-    current_layer = std::numeric_limits<float>::min();
+    current_layer = std::numeric_limits<float>::lowest();
     current_render_pass = RenderLayer::UNDEFINE;
     current_material_id = 0;
     current_texture = nullptr;

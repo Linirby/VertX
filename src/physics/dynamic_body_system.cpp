@@ -5,8 +5,8 @@ namespace lili {
 
 void
 DynamicBodySystem::updateEntity(
-    ECSRegistry& registry,
-    Entity entity,
+    [[maybe_unused]] ECSRegistry& registry,
+    [[maybe_unused]] Entity entity,
     lili::cDynamicBody& dyn_body_comp,
     lili::cVelocity& vel_comp,
     float dt
