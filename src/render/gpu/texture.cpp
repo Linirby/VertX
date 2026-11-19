@@ -71,7 +71,7 @@ Texture::initFromSurface(SDL_Surface* surface)
     SDL_GPUSamplerCreateInfo sampler_info{};
     sampler_info.min_filter = SDL_GPU_FILTER_NEAREST;
     sampler_info.mag_filter = SDL_GPU_FILTER_NEAREST;
-    sampler_info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+    sampler_info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
     sampler_info.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
     sampler_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
     sampler_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;

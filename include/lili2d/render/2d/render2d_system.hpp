@@ -113,7 +113,7 @@ private:
     inline static std::vector<DrawItem> items;
     inline static std::vector<uint32_t> item_indices;
 
-    inline static float current_layer = std::numeric_limits<float>::min();
+    inline static float current_layer = std::numeric_limits<float>::lowest();
     inline static RenderLayer current_render_pass = RenderLayer::UNDEFINE;
     inline static uint16_t current_material_id = 0;
     inline static Texture* current_texture = nullptr;

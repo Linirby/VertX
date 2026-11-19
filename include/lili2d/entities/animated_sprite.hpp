@@ -5,6 +5,7 @@
 #include "lili2d/components/sprite.hpp"
 #include "lili2d/components/transform.hpp"
 #include "lili2d/ecs/ecs_registry.hpp"
+#include <string_view>
 
 namespace lili {
 
