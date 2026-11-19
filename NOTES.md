@@ -7,7 +7,14 @@ smth else.
 
 ### TODO
 
+- Sys: CollisionSystem
+- Sys: FrictionSystem
+- Sys: MovementSystem
+
 ### IN PROGRESS
+
+- Sys: DynamicBodySystem
+- Sys: GravitySystem (Tests needed)
 
 ## KEEP FOR LATER
 
