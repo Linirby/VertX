@@ -10,6 +10,7 @@
 #include <lili2d/ecs/ecs_registry.hpp>
 #include <lili2d/ecs/entity.hpp>
 #include <lili2d/entities/rect.hpp>
+#include <lili2d/geometry/vec2.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
 #include <lili2d/physics/gravity_system.hpp>
 
@@ -31,16 +32,15 @@ Game::onInit()
     test_entity = lili::createRect(
         ecs_reg,
         {
-            .render2d = {
-                .size = { 50.0f, 50.0f },
-            },
+            .transform = { .pos = getWindow()->getSize() * 0.5f },
+            .render2d = { .size = lili::Vec2(50, 50) },
         }
     );
     ecs_reg.addComponents(
         test_entity,
         lili::cVelocity{},
         lili::cGravity{ .force = 0.0f },
-        lili::cDynamicBody{ .grounded = true }
+        lili::cDynamicBody{ .mass = 100.0f, .grounded = true }
     );
 }
 
