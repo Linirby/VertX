@@ -89,8 +89,10 @@ BitmapFont::glyphUv(char c) const noexcept
 }
 
 Vec2
-BitmapFont::calculateTextSize(std::string_view text, float spacing)
-    const noexcept
+BitmapFont::calculateTextSize(
+    std::string_view text,
+    float spacing
+) const noexcept
 {
     if (text.empty())
         return { 0.0f, 0.0f };

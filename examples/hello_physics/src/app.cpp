@@ -33,7 +33,10 @@ Game::onInit()
         ecs_reg,
         {
             .transform = { .pos = getWindow()->getSize() * 0.5f },
-            .render2d = { .size = lili::Vec2(50, 50) },
+            .render2d = {
+                .size = lili::Vec2(50, 50),
+                .use_interpolation = true,
+            },
         }
     );
     ecs_reg.addComponents(
@@ -88,6 +91,6 @@ Game::onFixedUpdate(float dt)
 
     auto& trans = ecs_reg.getComponent<lili::cTransform>(test_entity);
     auto& vel = ecs_reg.getComponent<lili::cVelocity>(test_entity);
-    trans.pos.x += vel.x * dt;
-    trans.pos.y += vel.y * dt;
+    trans.prev_pos = trans.pos;
+    trans.pos += lili::Vec2(vel.x, vel.y) * dt;
 }

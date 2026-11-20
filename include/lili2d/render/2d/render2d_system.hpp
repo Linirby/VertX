@@ -32,6 +32,7 @@ struct DrawItem
     Texture* texture;        ///< The texture
     Vec4 color;              ///< The color/tint
     Vec2 pos;                ///< The position
+    Vec2 prev_pos;           ///< The previous pos for interpolation
     Vec2 size;               ///< The size
     float layer;             ///< The layer/depth
     float rotation;          ///< The rotation
@@ -83,6 +84,8 @@ struct DrawItem
             float spacing;    ///< The spacing between letters
         } text;               ///< Text payload.
     } nature;                 ///< Active primitive payload.
+
+    bool use_interpolation; ///< Should we use interpolation
 };
 
 static_assert(
@@ -106,7 +109,8 @@ public:
         ECSRegistry& registry,
         DynamicBatch& batch,
         Texture* the_white_pixel,
-        BitmapFont* default_font
+        BitmapFont* default_font,
+        float alpha
     );
 
 private:

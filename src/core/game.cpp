@@ -61,8 +61,6 @@ Game::run()
     clock.reset();
 
     while (running) {
-        clock.update();
-
         Event event;
         while (event.poll()) {
             if (event.type() == EventType::QUIT)
@@ -160,20 +158,21 @@ Game::onUpdate(float dt)
 }
 
 void
-Game::onFixedUpdate([[maybe_unused]] float dt)
+Game::onFixedUpdate(float dt)
 {
     if (!scene_manager->empty())
         scene_manager->fixedUpdate(dt);
 }
 
 void
-Game::renderSystems(ECSRegistry& ecs_registry, [[maybe_unused]] float alpha)
+Game::renderSystems(ECSRegistry& ecs_registry, float alpha)
 {
     Render2DSystem::render(
         ecs_registry,
         *dynamic_batch,
         renderer->getTheWhitePixel(),
-        renderer->getDefaultFont()
+        renderer->getDefaultFont(),
+        alpha
     );
 }
 

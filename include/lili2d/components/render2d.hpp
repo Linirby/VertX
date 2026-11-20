@@ -20,8 +20,9 @@ struct cRender2D
     float layer = 0.0f;       ///< Depth sorting layer.
     uint16_t material_id = 0; ///< Linked material ID.
     RenderLayer render_pass =
-        RenderLayer::WORLD2D; ///< Target render pass (WORLD2D, UI, etc.).
-    bool is_visible = true;   ///< Whether this entity should be rendered.
+        RenderLayer::WORLD2D;       ///< Target render pass (WORLD2D, UI, etc.).
+    bool is_visible = true;         ///< Whether this entity should be rendered.
+    bool use_interpolation = false; ///< Use interpolated pos for rendering
 };
 
 static_assert(

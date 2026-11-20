@@ -11,6 +11,7 @@
 #include "lili2d/ecs/ecs_registry.hpp"
 #include "lili2d/ecs/ecs_view.hpp"
 #include "lili2d/ecs/entity.hpp"
+#include "lili2d/geometry/vec2.hpp"
 #include "lili2d/render/2d/bitmap_font.hpp"
 #include "lili2d/render/2d/dynamic_batch.hpp"
 #include "lili2d/render/gpu/texture.hpp"
@@ -27,7 +28,8 @@ Render2DSystem::render(
     ECSRegistry& registry,
     DynamicBatch& batch,
     Texture* the_white_pixel,
-    BitmapFont* default_font
+    BitmapFont* default_font,
+    float alpha
 )
 {
     batch.begin();
@@ -67,6 +69,9 @@ Render2DSystem::render(
                 current_texture = item.texture;
             }
 
+            Vec2 render_pos = item.pos;
+            if (item.use_interpolation)
+                render_pos = item.prev_pos.lerp(item.pos, alpha);
             if (item.type == DrawType::SPRITE)
                 batch.addSprite(
                     SliceUV{
@@ -78,14 +83,14 @@ Render2DSystem::render(
                         .width = item.size.x,
                         .height = item.size.y,
                     },
-                    item.pos,
+                    render_pos,
                     item.nature.sprite.scale,
                     item.rotation,
                     item.color
                 );
             else if (item.type == DrawType::RECT)
                 batch.addRect(
-                    item.pos,
+                    render_pos,
                     item.size,
                     item.nature.rect.scale,
                     item.rotation,
@@ -95,7 +100,7 @@ Render2DSystem::render(
                 );
             else if (item.type == DrawType::CIRCLE)
                 batch.addCircle(
-                    item.pos,
+                    render_pos,
                     item.nature.circle.radius,
                     item.nature.circle.segments,
                     item.color,
@@ -104,8 +109,8 @@ Render2DSystem::render(
                 );
             else if (item.type == DrawType::LINE)
                 batch.addLine(
-                    item.pos,
-                    item.pos + item.nature.line.dxy,
+                    render_pos,
+                    render_pos + item.nature.line.dxy,
                     item.nature.line.thickness,
                     item.color
                 );
@@ -117,7 +122,7 @@ Render2DSystem::render(
                 batch.addText(
                     item.nature.text.font,
                     text_string_view,
-                    item.pos,
+                    render_pos,
                     item.nature.text.scale,
                     item.rotation,
                     item.nature.text.spacing,
@@ -145,6 +150,7 @@ Render2DSystem::pushSprites(ECSRegistry& registry)
                 .texture = sprite.slice.texture,
                 .color = render2d.color,
                 .pos = trans.pos,
+                .prev_pos = trans.prev_pos,
                 .size = render2d.size,
                 .layer = render2d.layer,
                 .rotation = trans.rotation,
@@ -162,6 +168,7 @@ Render2DSystem::pushSprites(ECSRegistry& registry)
                         .v_max = sprite.slice.v_max,
                     },
                 },
+                .use_interpolation = render2d.use_interpolation,
             }
         );
     });
@@ -183,6 +190,7 @@ Render2DSystem::pushRects(ECSRegistry& registry, Texture* the_white_pixel)
                     .texture = the_white_pixel,
                     .color = render2d.color,
                     .pos = trans.pos,
+                    .prev_pos = trans.prev_pos,
                     .size = render2d.size,
                     .layer = render2d.layer,
                     .rotation = trans.rotation,
@@ -198,6 +206,7 @@ Render2DSystem::pushRects(ECSRegistry& registry, Texture* the_white_pixel)
                             .hollow = rect.hollow,
                         },
                     },
+                    .use_interpolation = render2d.use_interpolation,
                 }
             );
         }
@@ -222,6 +231,7 @@ Render2DSystem::pushCircles(ECSRegistry& registry, Texture* the_white_pixel)
                 .texture = the_white_pixel,
                 .color = render2d.color,
                 .pos = trans.pos,
+                .prev_pos = trans.prev_pos,
                 .size = render2d.size,
                 .layer = render2d.layer,
                 .rotation = trans.rotation,
@@ -238,6 +248,7 @@ Render2DSystem::pushCircles(ECSRegistry& registry, Texture* the_white_pixel)
                         .hollow = circle.hollow,
                     },
                 },
+                .use_interpolation = render2d.use_interpolation,
             }
         );
     });
@@ -259,6 +270,7 @@ Render2DSystem::pushLines(ECSRegistry& registry, Texture* the_white_pixel)
                     .texture = the_white_pixel,
                     .color = render2d.color,
                     .pos = trans.pos,
+                    .prev_pos = trans.prev_pos,
                     .size = render2d.size,
                     .layer = render2d.layer,
                     .rotation = trans.rotation,
@@ -273,6 +285,7 @@ Render2DSystem::pushLines(ECSRegistry& registry, Texture* the_white_pixel)
                             .thickness = line.thickness,
                         },
                     },
+                    .use_interpolation = render2d.use_interpolation,
                 }
             );
         }
@@ -300,6 +313,7 @@ Render2DSystem::pushTexts(ECSRegistry& registry, BitmapFont* default_font)
                     .texture = text.font->getTexture(),
                     .color = render2d.color,
                     .pos = trans.pos,
+                    .prev_pos = trans.prev_pos,
                     .size = render2d.size,
                     .layer = render2d.layer,
                     .rotation = trans.rotation,
@@ -317,6 +331,7 @@ Render2DSystem::pushTexts(ECSRegistry& registry, BitmapFont* default_font)
                             .spacing = text.spacing,
                         },
                     },
+                    .use_interpolation = render2d.use_interpolation,
                 }
             );
         }

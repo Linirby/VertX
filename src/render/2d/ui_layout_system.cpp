@@ -51,6 +51,7 @@ UILayoutSystem::updateEntity(
         };
     Vec2 topleft = getScreenPosition(layout, obj_size, viewport_size);
     trans.pos = topleft + obj_size * 0.5f;
+    trans.prev_pos = trans.pos;
 }
 
 void
