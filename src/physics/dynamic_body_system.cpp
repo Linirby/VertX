@@ -12,7 +12,6 @@ DynamicBodySystem::updateEntity(
     float dt
 )
 {
-    // TODO: check if the algo is working
     vel_comp.x += dyn_body_comp.force.x;
     vel_comp.y += dyn_body_comp.force.y;
 

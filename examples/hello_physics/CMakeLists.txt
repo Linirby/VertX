@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.10)
+project(VertXExamples)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_options(-Wall -Wextra -O3)
+
+find_package(Lili2D REQUIRED)
+
+add_executable(hello_physics
+    src/main.cpp
+    src/app.cpp
+)
+target_link_libraries(hello_physics PRIVATE lili::Lili2D)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/EmbarkAssets.cmake")
+embark_target_assets(hello_physics)
