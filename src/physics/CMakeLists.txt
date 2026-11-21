@@ -1,6 +1,7 @@
 add_library(lili_physics OBJECT
     dynamic_body_system.cpp
     gravity_system.cpp
+    movement_system.cpp
 )
 add_library(lili::physics ALIAS lili_physics)
 

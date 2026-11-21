@@ -10,6 +10,10 @@ namespace lili {
 class DynamicBodySystem : public System<cDynamicBody, cVelocity>
 {
 public:
+    static void
+    fixedUpdate(ECSRegistry& registry, float dt, ThreadPool* thread_pool);
+
+private:
     explicit DynamicBodySystem() noexcept {}
 
     void
@@ -20,9 +24,6 @@ public:
         lili::cVelocity& vel_comp,
         float dt
     ) override;
-
-    static void
-    fixedUpdate(ECSRegistry& registry, float dt, ThreadPool* thread_pool);
 };
 
 } // namespace lili

@@ -13,6 +13,7 @@
 #include <lili2d/geometry/vec2.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
 #include <lili2d/physics/gravity_system.hpp>
+#include <lili2d/physics/movement_system.hpp>
 
 void
 Game::onInit()
@@ -88,9 +89,5 @@ Game::onFixedUpdate(float dt)
 
     lili::GravitySystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::DynamicBodySystem::fixedUpdate(ecs_reg, dt, thread_pool);
-
-    auto& trans = ecs_reg.getComponent<lili::cTransform>(test_entity);
-    auto& vel = ecs_reg.getComponent<lili::cVelocity>(test_entity);
-    trans.prev_pos = trans.pos;
-    trans.pos += lili::Vec2(vel.x, vel.y) * dt;
+    lili::MovementSystem::fixedUpdate(ecs_reg, dt, thread_pool);
 }
