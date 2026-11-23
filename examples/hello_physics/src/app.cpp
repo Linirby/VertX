@@ -46,8 +46,8 @@ Game::onInit()
     ecs_reg.addComponents(
         test_entity,
         lili::cVelocity{},
-        lili::cFriction{ .amount = 7.0f },
-        lili::cDynamicBody{ .air_drag = 3.0f, .grounded = false }
+        lili::cFriction{},
+        lili::cDynamicBody{ .grounded = true }
     );
 }
 
@@ -84,7 +84,8 @@ Game::onUpdate(float dt)
             dir.y += 1.0f;
     }
     body.force = { 0.0f, 0.0f };
-    body.force = dir.normalized() * 150.0f;
+    body.force =
+        dir.normalized() * ((body.grounded) ? GROUND_ACCEL : AIR_ACCEL);
 }
 
 void

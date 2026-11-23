@@ -6,9 +6,9 @@ namespace lili {
 /// @brief Physics component that reprensent the gravity force
 struct cGravity
 {
-    float force = 9.81f;           ///< The force
-    float scale = 1.0f;            ///< Multiplier for the force
-    float max_fall_speed = 500.0f; ///< Limit that cap fall speed
+    float force = 9.81f;            ///< The force
+    float scale = 10.0f;            ///< Multiplier for the force
+    float max_fall_speed = 5000.0f; ///< Limit that cap fall speed
 };
 
 static_assert(

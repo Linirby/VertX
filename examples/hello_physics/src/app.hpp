@@ -13,6 +13,9 @@ public:
     }
 
 private:
+    const float GROUND_ACCEL = 300.0f;
+    const float AIR_ACCEL = 90.0f;
+
     lili::Entity test_entity;
 
     void
