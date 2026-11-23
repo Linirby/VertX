@@ -2,6 +2,7 @@
 #include "lili2d/components/dynamic_body.hpp"
 #include "lili2d/core/thread_pool.hpp"
 #include "lili2d/ecs/ecs_registry.hpp"
+#include "lili2d/ecs/entity.hpp"
 
 namespace lili {
 
@@ -32,6 +33,7 @@ GravitySystem::fixedUpdate(
     ThreadPool* thread_pool
 )
 {
+    (void)registry.getPool<cDynamicBody>();
     auto sys = GravitySystem();
     sys.run(registry, dt, thread_pool);
 }

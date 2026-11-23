@@ -1,5 +1,6 @@
 add_library(lili_physics OBJECT
     dynamic_body_system.cpp
+    friction_system.cpp
     gravity_system.cpp
     movement_system.cpp
 )

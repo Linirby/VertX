@@ -6,7 +6,7 @@ namespace lili {
 /// @brief Physics component that reprensent the friction on a surface
 struct cFriction
 {
-    float amount = 400.0f; ///< Bigger amount is more friction
+    float amount = 10.0f; ///< Bigger amount is more friction
 };
 
 static_assert(

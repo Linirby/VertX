@@ -1,5 +1,7 @@
 #include "app.hpp"
+
 #include <lili2d/components/dynamic_body.hpp>
+#include <lili2d/components/friction.hpp>
 #include <lili2d/components/gravity.hpp>
 #include <lili2d/components/transform.hpp>
 #include <lili2d/components/velocity.hpp>
@@ -12,6 +14,7 @@
 #include <lili2d/entities/rect.hpp>
 #include <lili2d/geometry/vec2.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
+#include <lili2d/physics/friction_system.hpp>
 #include <lili2d/physics/gravity_system.hpp>
 #include <lili2d/physics/movement_system.hpp>
 
@@ -43,8 +46,8 @@ Game::onInit()
     ecs_reg.addComponents(
         test_entity,
         lili::cVelocity{},
-        lili::cGravity{ .force = 0.0f },
-        lili::cDynamicBody{ .mass = 100.0f, .grounded = true }
+        lili::cFriction{ .amount = 7.0f },
+        lili::cDynamicBody{ .air_drag = 3.0f, .grounded = false }
     );
 }
 
@@ -68,17 +71,20 @@ Game::onUpdate(float dt)
     auto& actions = lili::ActionMap::get();
     auto& body = getECSRegistry().getComponent<lili::cDynamicBody>(test_entity);
 
+    lili::Vec2 dir = { 0.0f, 0.0f };
     if (actions.isHeld("impulse_drag")) {
     } else {
         if (actions.isHeld("move_left"))
-            body.force.x = -50.0f;
+            dir.x += -1.0f;
         if (actions.isHeld("move_right"))
-            body.force.x = 50.0f;
+            dir.x += 1.0f;
         if (actions.isHeld("move_up"))
-            body.force.y = -50.0f;
+            dir.y += -1.0f;
         if (actions.isHeld("move_down"))
-            body.force.y = 50.0f;
+            dir.y += 1.0f;
     }
+    body.force = { 0.0f, 0.0f };
+    body.force = dir.normalized() * 150.0f;
 }
 
 void
@@ -89,5 +95,6 @@ Game::onFixedUpdate(float dt)
 
     lili::GravitySystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::DynamicBodySystem::fixedUpdate(ecs_reg, dt, thread_pool);
+    lili::FrictionSystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::MovementSystem::fixedUpdate(ecs_reg, dt, thread_pool);
 }

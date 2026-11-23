@@ -9,7 +9,7 @@ struct cDynamicBody
 {
     Vec2 force = {};               ///< Force accumulator
     Vec2 impulse = {};             ///< Impulse accumulator
-    float resistance = 0.5f;       ///< Air drag / damping
+    float air_drag = 3.0f;         ///< Air drag / damping
     float bounciness = 0.0f;       ///< Restitution (0: no bounce, 1: elastic)
     float contact_friction = 0.0f; ///< Friction when there's a contact
     float mass = 10.0f;            ///< Basically the mass :3
