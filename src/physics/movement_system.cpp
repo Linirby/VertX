@@ -1,5 +1,10 @@
 #include "lili2d/physics/movement_system.hpp"
 
+#include "lili2d/components/transform.hpp"
+#include "lili2d/components/velocity.hpp"
+#include "lili2d/ecs/ecs_view.hpp"
+#include "lili2d/geometry/vec2.hpp"
+
 namespace lili {
 
 void
@@ -9,21 +14,13 @@ MovementSystem::fixedUpdate(
     ThreadPool* thread_pool
 )
 {
-    auto sys = MovementSystem();
-    sys.run(registry, dt, thread_pool);
-}
-
-void
-MovementSystem::updateEntity(
-    [[maybe_unused]] ECSRegistry& registry,
-    [[maybe_unused]] Entity entity,
-    lili::cVelocity& vel_comp,
-    lili::cTransform& trans_comp,
-    float dt
-)
-{
-    trans_comp.prev_pos = trans_comp.pos;
-    trans_comp.pos += lili::Vec2(vel_comp.x, vel_comp.y) * dt;
+    ECSView<cVelocity, cTransform>(registry).parallelEach(
+        thread_pool,
+        [dt](Entity, cVelocity& vel, cTransform& trans) {
+            trans.prev_pos = trans.pos;
+            trans.pos += Vec2(vel.x, vel.y) * dt;
+        }
+    );
 }
 
 } // namespace lili

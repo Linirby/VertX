@@ -1,10 +1,17 @@
 #include "lili2d/core/thread_pool.hpp"
 
+#include "lili2d/core/engine_config.hpp"
+
 #include <algorithm>
 #include <iostream>
 #include <utility>
 
 namespace lili {
+
+ThreadPool::ThreadPool()
+  : ThreadPool(EngineConfig{})
+{
+}
 
 ThreadPool::ThreadPool(const EngineConfig& config)
   : profile(config.profile)

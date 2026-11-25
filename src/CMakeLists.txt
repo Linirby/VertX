@@ -34,7 +34,7 @@ target_include_directories(Lili2D
 include(CheckIPOSupported)
 check_ipo_supported(RESULT result OUTPUT output)
 if(result)
-    set_target_properties(Lili2D PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(Lili2D PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 else()
     message(WARNING "IPO is not supported: ${output}")
 endif()

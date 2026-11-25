@@ -4,6 +4,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 EXAMPLES_DIR="$REPO_ROOT/examples"
 BUILD_JOBS=$(nproc 2>/dev/null || echo 4)
+RECONFIGURE=0
+
+for arg in "$@"; do
+    if [ "$arg" = "--reconfigure" ]; then
+        RECONFIGURE=1
+    fi
+done
+
+GENERATOR_ARGS=()
+EXPECTED_GEN=""
+if command -v ninja >/dev/null 2>&1; then
+    GENERATOR_ARGS=(-G Ninja)
+    EXPECTED_GEN="Ninja"
+fi
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -43,8 +57,30 @@ for dir in "$EXAMPLES_DIR"/*/; do
 
     mkdir -p "$dir/build"
 
-    if cmake -B "$dir/build" -S "$dir" -DCMAKE_PREFIX_PATH="$REPO_ROOT/build" -DLili2D_DIR="$REPO_ROOT/build" >"$dir/build/cmake_build.log" 2>&1 &&
-        cmake --build "$dir/build" -j"$BUILD_JOBS" >>"$dir/build/cmake_build.log" 2>&1; then
+    # Switch cleanly if an existing build dir used a different CMake generator
+    if [ -n "$EXPECTED_GEN" ] && [ -f "$dir/build/CMakeCache.txt" ] &&
+        ! grep -q "^CMAKE_GENERATOR:INTERNAL=${EXPECTED_GEN}$" "$dir/build/CMakeCache.txt"; then
+        rm -rf "$dir/build"
+        mkdir -p "$dir/build"
+    fi
+
+    NEED_CONFIG=0
+    if [ "$RECONFIGURE" -eq 1 ] || [ ! -f "$dir/build/CMakeCache.txt" ]; then
+        NEED_CONFIG=1
+    fi
+
+    BUILD_OK=1
+    : >"$dir/build/cmake_build.log"
+    if [ "$NEED_CONFIG" -eq 1 ]; then
+        cmake -B "$dir/build" "${GENERATOR_ARGS[@]}" -S "$dir" \
+            -DCMAKE_PREFIX_PATH="$REPO_ROOT/build" \
+            -DLili2D_DIR="$REPO_ROOT/build" >>"$dir/build/cmake_build.log" 2>&1 || BUILD_OK=0
+    fi
+    if [ "$BUILD_OK" -eq 1 ]; then
+        cmake --build "$dir/build" -j"$BUILD_JOBS" >>"$dir/build/cmake_build.log" 2>&1 || BUILD_OK=0
+    fi
+
+    if [ "$BUILD_OK" -eq 1 ]; then
         echo -e "${GREEN}[OK]${NC}"
         PASSED_COUNT=$((PASSED_COUNT + 1))
         PASSED_EXAMPLES+=("$example_name")

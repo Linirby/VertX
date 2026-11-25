@@ -5,6 +5,7 @@
 #include <string>
 
 #include "lili2d/core/clock.hpp"
+#include "lili2d/core/engine_config.hpp"
 #include "lili2d/core/event.hpp"
 #include "lili2d/core/scene_manager.hpp"
 #include "lili2d/core/thread_pool.hpp"

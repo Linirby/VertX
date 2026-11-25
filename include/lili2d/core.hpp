@@ -10,6 +10,7 @@
 #include "lili2d/core/batch_item.hpp"       // IWYU pragma: export
 #include "lili2d/core/clock.hpp"            // IWYU pragma: export
 #include "lili2d/core/easing.hpp"           // IWYU pragma: export
+#include "lili2d/core/engine_config.hpp"    // IWYU pragma: export
 #include "lili2d/core/event.hpp"            // IWYU pragma: export
 #include "lili2d/core/game.hpp"             // IWYU pragma: export
 #include "lili2d/core/game_config.hpp"      // IWYU pragma: export

@@ -1,30 +1,12 @@
 #include "lili2d/physics/dynamic_body_system.hpp"
+
+#include "lili2d/components/dynamic_body.hpp"
+#include "lili2d/components/velocity.hpp"
+#include "lili2d/ecs/ecs_view.hpp"
+
 #include <cmath>
 
 namespace lili {
-
-void
-DynamicBodySystem::updateEntity(
-    [[maybe_unused]] ECSRegistry& registry,
-    [[maybe_unused]] Entity entity,
-    lili::cDynamicBody& dyn_body_comp,
-    lili::cVelocity& vel_comp,
-    float dt
-)
-{
-    vel_comp.x += dyn_body_comp.force.x;
-    vel_comp.y += dyn_body_comp.force.y;
-
-    vel_comp.x += dyn_body_comp.impulse.x;
-    vel_comp.y += dyn_body_comp.impulse.y;
-    dyn_body_comp.impulse = {};
-
-    if (dyn_body_comp.air_drag > 0.0f && !dyn_body_comp.grounded) {
-        float damp = std::exp(-dyn_body_comp.air_drag * dt);
-        vel_comp.x *= damp;
-        vel_comp.y *= damp;
-    }
-}
 
 void
 DynamicBodySystem::fixedUpdate(
@@ -33,8 +15,23 @@ DynamicBodySystem::fixedUpdate(
     ThreadPool* thread_pool
 )
 {
-    auto sys = DynamicBodySystem();
-    sys.run(registry, dt, thread_pool);
+    ECSView<cDynamicBody, cVelocity>(registry).parallelEach(
+        thread_pool,
+        [dt](Entity, cDynamicBody& body, cVelocity& vel) {
+            vel.x += body.force.x;
+            vel.y += body.force.y;
+
+            vel.x += body.impulse.x;
+            vel.y += body.impulse.y;
+            body.impulse = {};
+
+            if (body.air_drag > 0.0f && !body.grounded) {
+                float damp = std::exp(-body.air_drag * dt);
+                vel.x *= damp;
+                vel.y *= damp;
+            }
+        }
+    );
 }
 
 } // namespace lili

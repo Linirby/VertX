@@ -6,6 +6,7 @@
 #include "lili2d/components/render2d.hpp"
 #include "lili2d/components/transform.hpp"
 #include "lili2d/components/ui_layout.hpp"
+#include "lili2d/core/engine_config.hpp"
 #include "lili2d/ecs.hpp"
 #include "lili2d/render/2d/ui_layout_system.hpp"
 

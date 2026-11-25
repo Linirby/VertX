@@ -1,8 +1,8 @@
 #pragma once
 
-#include "lili2d/ecs/ecs_registry.hpp"
-
 namespace lili {
+
+class ECSRegistry;
 
 class CollisionSystem
 {
