@@ -1,5 +1,11 @@
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include "lili2d/components/box_collider.hpp"
+#include "lili2d/components/dynamic_body.hpp"
+#include "lili2d/components/transform.hpp"
+#include "lili2d/components/velocity.hpp"
+#include "lili2d/ecs/ecs_registry.hpp"
 #include "lili2d/physics.hpp"
 
 using namespace lili;
@@ -314,5 +320,171 @@ TEST_CASE("AABB3 Intersection, Overlaps, and Containment", "[physics][aabb3]")
         CHECK_FALSE(box1.contains(outside));
         CHECK_FALSE(box1.intersect(outside));
         CHECK_FALSE(box1.overlaps(outside));
+    }
+}
+
+TEST_CASE("CollisionSystem Dynamic vs Static", "[physics][collision]")
+{
+    ECSRegistry registry;
+    constexpr float dt = 0.1f;
+
+    // Static floor: centered at (0, 100), size (200, 20) -> top surface at y =
+    // 90
+    Entity floor = registry.createEntity();
+    registry.addComponents(
+        floor,
+        cTransform{ .pos = { 0.0f, 100.0f } },
+        cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 200.0f, 20.0f } }
+    );
+
+    SECTION("Landing on floor stops flush and sets grounded")
+    {
+        // Player 20x20 centered at (0, 75) -> bottom at y = 85 (5 px above
+        // floor)
+        Entity player = registry.createEntity();
+        registry.addComponents(
+            player,
+            cTransform{ .pos = { 0.0f, 75.0f } },
+            cVelocity{ .x = 0.0f,
+                       .y = 100.0f }, // delta.y = 10 px -> hits at t = 0.5
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 20.0f } },
+            cDynamicBody{}
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& trans = registry.getComponent<cTransform>(player);
+        const auto& body = registry.getComponent<cDynamicBody>(player);
+
+        // Bottom should sit flush on y = 90 -> center at y = 80
+        CHECK(trans.pos.y == Catch::Approx(80.0f));
+        CHECK(body.grounded);
+    }
+
+    SECTION("High-speed projectile does not tunnel through thin wall")
+    {
+        // Thin wall: centered at (50, 0), size (4, 100) -> left face at x = 48
+        Entity wall = registry.createEntity();
+        registry.addComponents(
+            wall,
+            cTransform{ .pos = { 50.0f, 0.0f } },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 4.0f, 100.0f } }
+        );
+
+        // Fast 10x10 box at x = 0 moving +2000 px/s (delta.x = 200 px!)
+        Entity bullet = registry.createEntity();
+        registry.addComponents(
+            bullet,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 2000.0f, .y = 0.0f },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 10.0f, 10.0f } }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& trans = registry.getComponent<cTransform>(bullet);
+        // Right face touches wall left face (x = 48) -> center at x = 43
+        CHECK(trans.pos.x == Catch::Approx(43.0f));
+    }
+
+    SECTION("Diagonal movement into floor+wall corner resolves both axes")
+    {
+        // Right wall: centered at (60, 0), size (20, 200) -> left face at x =
+        // 50
+        Entity wall = registry.createEntity();
+        registry.addComponents(
+            wall,
+            cTransform{ .pos = { 60.0f, 0.0f } },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 200.0f } }
+        );
+
+        // 20x20 box at (32, 75): 8 px from wall, 5 px from floor
+        Entity player = registry.createEntity();
+        registry.addComponents(
+            player,
+            cTransform{ .pos = { 32.0f, 75.0f } },
+            cVelocity{ .x = 100.0f, .y = 100.0f }, // delta = (10, 10)
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 20.0f } },
+            cDynamicBody{}
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& trans = registry.getComponent<cTransform>(player);
+        const auto& body = registry.getComponent<cDynamicBody>(player);
+
+        CHECK(trans.pos.x == Catch::Approx(40.0f));
+        CHECK(trans.pos.y == Catch::Approx(80.0f));
+        CHECK(body.grounded);
+    }
+
+    SECTION("Overlap fallback pushes out already-overlapping box")
+    {
+        // 20x20 box at (0, 84) -> bottom at 94 (4 px inside floor top at 90)
+        Entity player = registry.createEntity();
+        registry.addComponents(
+            player,
+            cTransform{ .pos = { 0.0f, 84.0f } },
+            cVelocity{ .x = 0.0f, .y = 50.0f },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 20.0f } },
+            cDynamicBody{}
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& trans = registry.getComponent<cTransform>(player);
+        const auto& body = registry.getComponent<cDynamicBody>(player);
+
+        CHECK(trans.pos.y == Catch::Approx(80.0f));
+        CHECK(body.grounded);
+    }
+
+    SECTION("Bounciness reflects velocity off floor")
+    {
+        Entity ball = registry.createEntity();
+        registry.addComponents(
+            ball,
+            cTransform{ .pos = { 0.0f, 75.0f } },
+            cVelocity{ .x = 0.0f, .y = 100.0f },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 20.0f } },
+            cDynamicBody{ .bounciness = 0.5f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+
+        const auto& vel = registry.getComponent<cVelocity>(ball);
+        CHECK(vel.y == Catch::Approx(-50.0f));
+    }
+
+    SECTION("Non-physical trigger does not block movement")
+    {
+        Entity trigger = registry.createEntity();
+        registry.addComponents(
+            trigger,
+            cTransform{ .pos = { 20.0f, 0.0f } },
+            cBoxCollider{
+                .offset = { 0.0f, 0.0f },
+                .size = { 10.0f, 100.0f },
+                .physical = false,
+            }
+        );
+
+        Entity mover = registry.createEntity();
+        registry.addComponents(
+            mover,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 500.0f, .y = 0.0f },
+            cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 10.0f, 10.0f } }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& trans = registry.getComponent<cTransform>(mover);
+        CHECK(trans.pos.x == Catch::Approx(50.0f));
     }
 }

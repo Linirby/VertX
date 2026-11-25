@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include <lili2d/components/box_collider.hpp>
 #include <lili2d/components/dynamic_body.hpp>
 #include <lili2d/components/friction.hpp>
 #include <lili2d/components/gravity.hpp>
@@ -14,6 +15,8 @@
 #include <lili2d/ecs/entity.hpp>
 #include <lili2d/entities/rect.hpp>
 #include <lili2d/geometry/vec2.hpp>
+#include <lili2d/physics/aabb_collider.hpp>
+#include <lili2d/physics/collision_system.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
 #include <lili2d/physics/friction_system.hpp>
 #include <lili2d/physics/gravity_system.hpp>
@@ -47,7 +50,50 @@ Game::onInit()
         test_entity,
         lili::cVelocity{},
         lili::cFriction{},
-        lili::cDynamicBody{ .grounded = false }
+        lili::cDynamicBody{ .grounded = false },
+        lili::cBoxCollider{ .size = lili::Vec2(50.0f, 50.0f) }
+    );
+
+    lili::Vec2 win_size = getWindow()->getSize();
+    borders[0] = lili::createRect(
+        ecs_reg,
+        {
+            .transform = { .pos = { 0.0f, win_size.y * 0.5f } },
+            .render2d = { .size = { win_size.x, 50.0f } },
+        }
+    );
+    ecs_reg.addComponents(
+        borders[0], lili::cBoxCollider{ .size = { win_size.x, 50.0f } }
+    );
+    borders[1] = lili::createRect(
+        ecs_reg,
+        {
+            .transform = { .pos = { 0.0f, win_size.y * -0.5f } },
+            .render2d = { .size = { win_size.x, 50.0f } },
+        }
+    );
+    ecs_reg.addComponents(
+        borders[1], lili::cBoxCollider{ .size = { win_size.x, 50.0f } }
+    );
+    borders[2] = lili::createRect(
+        ecs_reg,
+        {
+            .transform = { .pos = { win_size.x * -0.5f, 0.0f } },
+            .render2d = { .size = { 50.0f, win_size.y } },
+        }
+    );
+    ecs_reg.addComponents(
+        borders[2], lili::cBoxCollider{ .size = { 50.0f, win_size.y } }
+    );
+    borders[3] = lili::createRect(
+        ecs_reg,
+        {
+            .transform = { .pos = { win_size.x * 0.5f, 0.0f } },
+            .render2d = { .size = { 50.0f, win_size.y } },
+        }
+    );
+    ecs_reg.addComponents(
+        borders[3], lili::cBoxCollider{ .size = { 50.0f, win_size.y } }
     );
 
     getRenderer()->setCamera(&camera);
@@ -105,5 +151,6 @@ Game::onFixedUpdate(float dt)
     lili::GravitySystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::DynamicBodySystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::FrictionSystem::fixedUpdate(ecs_reg, dt, thread_pool);
+    lili::CollisionSystem::fixedUpdate(ecs_reg, dt);
     lili::MovementSystem::fixedUpdate(ecs_reg, dt, thread_pool);
 }

@@ -11,4 +11,3 @@
 #include "lili2d/physics/friction_system.hpp"     // IWYU pragma: export
 #include "lili2d/physics/gravity_system.hpp"      // IWYU pragma: export
 #include "lili2d/physics/movement_system.hpp"     // IWYU pragma: export
-#include "lili2d/physics/raycast.hpp"             // IWYU pragma: export
