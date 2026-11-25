@@ -9,6 +9,7 @@
 #include <lili2d/core/event.hpp>
 #include <lili2d/core/game.hpp>
 #include <lili2d/core/keys.hpp>
+#include <lili2d/core/mouse.hpp>
 #include <lili2d/ecs/ecs_registry.hpp>
 #include <lili2d/ecs/entity.hpp>
 #include <lili2d/entities/rect.hpp>
@@ -36,7 +37,6 @@ Game::onInit()
     test_entity = lili::createRect(
         ecs_reg,
         {
-            .transform = { .pos = getWindow()->getSize() * 0.5f },
             .render2d = {
                 .size = lili::Vec2(50, 50),
                 .use_interpolation = true,
@@ -47,8 +47,10 @@ Game::onInit()
         test_entity,
         lili::cVelocity{},
         lili::cFriction{},
-        lili::cDynamicBody{ .grounded = true }
+        lili::cDynamicBody{ .grounded = false }
     );
+
+    getRenderer()->setCamera(&camera);
 }
 
 void
@@ -71,8 +73,14 @@ Game::onUpdate(float dt)
     auto& actions = lili::ActionMap::get();
     auto& body = getECSRegistry().getComponent<lili::cDynamicBody>(test_entity);
 
+    mouse.update();
     lili::Vec2 dir = { 0.0f, 0.0f };
-    if (actions.isHeld("impulse_drag")) {
+    if (actions.isJustPressed("impulse_drag"))
+        start_impulse_pos = mouse.getPos();
+    else if (actions.isJustReleased("impulse_drag")) {
+        lili::Vec2 end_impulse_pos = mouse.getPos();
+        dir = end_impulse_pos - start_impulse_pos;
+        body.impulse = -dir.normalized() * dir.length() * 10.0f;
     } else {
         if (actions.isHeld("move_left"))
             dir.x += -1.0f;
