@@ -15,6 +15,7 @@
 #include <lili2d/ecs/entity.hpp>
 #include <lili2d/entities/rect.hpp>
 #include <lili2d/geometry/vec2.hpp>
+#include <lili2d/geometry/vec4.hpp>
 #include <lili2d/physics/aabb_collider.hpp>
 #include <lili2d/physics/collision_system.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
@@ -50,7 +51,7 @@ Game::onInit()
         test_entity,
         lili::cVelocity{},
         lili::cFriction{},
-        lili::cDynamicBody{ .grounded = false },
+        lili::cDynamicBody{},
         lili::cBoxCollider{ .size = lili::Vec2(50.0f, 50.0f) }
     );
 
@@ -58,42 +59,61 @@ Game::onInit()
     borders[0] = lili::createRect(
         ecs_reg,
         {
-            .transform = { .pos = { 0.0f, win_size.y * 0.5f } },
-            .render2d = { .size = { win_size.x, 50.0f } },
-        }
+            .transform = { .pos = lili::Vec2(0.0f, win_size.y * 0.5f), },
+            .render2d = { .size = lili::Vec2(win_size.x, 50.0f), },
+}
     );
     ecs_reg.addComponents(
-        borders[0], lili::cBoxCollider{ .size = { win_size.x, 50.0f } }
+        borders[0], lili::cBoxCollider{ .size = lili::Vec2(win_size.x, 50.0f) }
     );
     borders[1] = lili::createRect(
         ecs_reg,
         {
-            .transform = { .pos = { 0.0f, win_size.y * -0.5f } },
-            .render2d = { .size = { win_size.x, 50.0f } },
+            .transform = { .pos = lili::Vec2(0.0f, win_size.y * -0.5f) },
+            .render2d = { .size = lili::Vec2(win_size.x, 50.0f) },
         }
     );
     ecs_reg.addComponents(
-        borders[1], lili::cBoxCollider{ .size = { win_size.x, 50.0f } }
+        borders[1], lili::cBoxCollider{ .size = lili::Vec2(win_size.x, 50.0f) }
     );
     borders[2] = lili::createRect(
         ecs_reg,
         {
-            .transform = { .pos = { win_size.x * -0.5f, 0.0f } },
-            .render2d = { .size = { 50.0f, win_size.y } },
+            .transform = { .pos = lili::Vec2(win_size.x * -0.5f, 0.0f), },
+            .render2d = { .size = lili::Vec2(50.0f, win_size.y), },
         }
     );
     ecs_reg.addComponents(
-        borders[2], lili::cBoxCollider{ .size = { 50.0f, win_size.y } }
+        borders[2], lili::cBoxCollider{ .size = lili::Vec2(50.0f, win_size.y) }
     );
     borders[3] = lili::createRect(
         ecs_reg,
         {
-            .transform = { .pos = { win_size.x * 0.5f, 0.0f } },
-            .render2d = { .size = { 50.0f, win_size.y } },
+            .transform = { .pos = lili::Vec2(win_size.x * 0.5f, 0.0f), },
+            .render2d = { .size = lili::Vec2(50.0f, win_size.y), },
         }
     );
     ecs_reg.addComponents(
-        borders[3], lili::cBoxCollider{ .size = { 50.0f, win_size.y } }
+        borders[3], lili::cBoxCollider{ .size = lili::Vec2(50.0f, win_size.y) }
+    );
+
+    blue_box = lili::createRect(
+        ecs_reg,
+        {
+            .transform = { .pos = lili::Vec2(100.0f, 0.0f), },
+            .render2d = {
+                .color = lili::Vec4(0.0f, 0.0f, 1.0f, 1.0f),
+                .size = lili::Vec2(50.0f, 50.0f),
+                .use_interpolation = true,
+            },
+        }
+    );
+    ecs_reg.addComponents(
+        blue_box,
+        lili::cVelocity{},
+        lili::cFriction{},
+        lili::cDynamicBody{ .mass = 1.0f },
+        lili::cBoxCollider{ .size = lili::Vec2(50.0f, 50.0f) }
     );
 
     getRenderer()->setCamera(&camera);
@@ -120,7 +140,7 @@ Game::onUpdate(float dt)
     auto& body = getECSRegistry().getComponent<lili::cDynamicBody>(test_entity);
 
     mouse.update();
-    lili::Vec2 dir = { 0.0f, 0.0f };
+    lili::Vec2 dir(0.0f, 0.0f);
     if (actions.isJustPressed("impulse_drag"))
         start_impulse_pos = mouse.getPos();
     else if (actions.isJustReleased("impulse_drag")) {

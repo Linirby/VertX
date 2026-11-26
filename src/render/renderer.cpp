@@ -7,7 +7,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 #include "lili2d/geometry/mat3x3.hpp"
 #include "lili2d/geometry/vec2.hpp"

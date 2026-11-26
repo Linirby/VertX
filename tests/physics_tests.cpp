@@ -488,3 +488,155 @@ TEST_CASE("CollisionSystem Dynamic vs Static", "[physics][collision]")
         CHECK(trans.pos.x == Catch::Approx(50.0f));
     }
 }
+
+TEST_CASE("CollisionSystem Dynamic vs Dynamic", "[physics][collision]")
+{
+    ECSRegistry registry;
+    constexpr float dt = 0.1f;
+
+    SECTION("Elastic head-on collision swaps equal-mass velocities")
+    {
+        Entity a = registry.createEntity();
+        Entity b = registry.createEntity();
+        registry.addComponents(
+            a,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 100.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .bounciness = 1.0f, .mass = 10.0f }
+        );
+        registry.addComponents(
+            b,
+            cTransform{ .pos = { 20.0f, 0.0f } },
+            cVelocity{ .x = -100.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .bounciness = 1.0f, .mass = 10.0f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+
+        CHECK(registry.getComponent<cVelocity>(a).x == Catch::Approx(-100.0f));
+        CHECK(registry.getComponent<cVelocity>(b).x == Catch::Approx(100.0f));
+    }
+
+    SECTION("Inelastic collision lands flush and transfers momentum")
+    {
+        // A at x=0 moving +100 (delta=10), B at x=15 stationary -> 5px gap ->
+        // t=0.5
+        Entity a = registry.createEntity();
+        Entity b = registry.createEntity();
+        registry.addComponents(
+            a,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 100.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .bounciness = 0.0f, .mass = 10.0f }
+        );
+        registry.addComponents(
+            b,
+            cTransform{ .pos = { 15.0f, 0.0f } },
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .bounciness = 0.0f, .mass = 10.0f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        const auto& ta = registry.getComponent<cTransform>(a);
+        const auto& tb = registry.getComponent<cTransform>(b);
+        CHECK((tb.pos.x - ta.pos.x) == Catch::Approx(10.0f));
+        CHECK(registry.getComponent<cVelocity>(b).x > 0.0f);
+    }
+
+    SECTION("Mass-weighted overlap pushes lighter body further")
+    {
+        Entity light = registry.createEntity();
+        Entity heavy = registry.createEntity();
+        registry.addComponents(
+            light,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 1.0f }
+        );
+        registry.addComponents(
+            heavy,
+            cTransform{ .pos = { 6.0f, 0.0f } }, // 4px overlap
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 3.0f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+
+        // inv_light = 1, inv_heavy = 1/3 -> 75% push on light (-3px), 25% on
+        // heavy (+1px)
+        CHECK(
+            registry.getComponent<cTransform>(light).pos.x ==
+            Catch::Approx(-3.0f)
+        );
+        CHECK(
+            registry.getComponent<cTransform>(heavy).pos.x ==
+            Catch::Approx(7.0f)
+        );
+    }
+
+    SECTION("Landing on top of another dynamic body sets grounded")
+    {
+        Entity top = registry.createEntity();
+        Entity bottom = registry.createEntity();
+        registry.addComponents(
+            top,
+            cTransform{ .pos = { 0.0f, 0.0f } },
+            cVelocity{ .x = 0.0f, .y = 100.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+        registry.addComponents(
+            bottom,
+            cTransform{ .pos = { 0.0f, 15.0f } },
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+
+        CHECK(registry.getComponent<cDynamicBody>(top).grounded);
+        CHECK_FALSE(registry.getComponent<cDynamicBody>(bottom).grounded);
+    }
+
+    SECTION("Dynamic push cannot shove another body through a static wall")
+    {
+        Entity wall = registry.createEntity();
+        registry.addComponents(
+            wall,
+            cTransform{ .pos = { 30.0f, 0.0f } },
+            cBoxCollider{ .size = { 10.0f, 100.0f } } // left face at x = 25
+        );
+
+        Entity pusher = registry.createEntity();
+        Entity boxed = registry.createEntity();
+        registry.addComponents(
+            pusher,
+            cTransform{ .pos = { 5.0f, 0.0f } },
+            cVelocity{ .x = 200.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+        registry.addComponents(
+            boxed,
+            cTransform{
+                .pos = { 20.0f, 0.0f } }, // right face already at x = 25
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+
+        CollisionSystem::fixedUpdate(registry, dt);
+        MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+        CHECK(registry.getComponent<cTransform>(boxed).pos.x <= 20.0f + 1e-4f);
+    }
+}

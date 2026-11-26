@@ -25,6 +25,7 @@ private:
 
     lili::Entity test_entity;
     std::array<lili::Entity, 4> borders{};
+    lili::Entity blue_box;
 
     lili::Camera camera;
 
