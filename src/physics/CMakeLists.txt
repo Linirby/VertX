@@ -1,4 +1,5 @@
 add_library(lili_physics OBJECT
+    collision_helper.cpp
     collision_system.cpp
     dynamic_body_system.cpp
     friction_system.cpp

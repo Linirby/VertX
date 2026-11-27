@@ -637,6 +637,114 @@ TEST_CASE("CollisionSystem Dynamic vs Dynamic", "[physics][collision]")
         CollisionSystem::fixedUpdate(registry, dt);
         MovementSystem::fixedUpdate(registry, dt, nullptr);
 
-        CHECK(registry.getComponent<cTransform>(boxed).pos.x <= 20.0f + 1e-4f);
+        const auto& pusher_pos = registry.getComponent<cTransform>(pusher).pos;
+        const auto& boxed_pos = registry.getComponent<cTransform>(boxed).pos;
+        CHECK(boxed_pos.x <= 20.0f + 1e-4f);
+        CHECK(pusher_pos.x <= boxed_pos.x - 10.0f + 1e-4f);
+    }
+
+    SECTION("Heavy body cannot enter lighter body pinned in a corner")
+    {
+        // Right wall: left face at x = 25; bottom wall: top face at y = 25
+        Entity right_wall = registry.createEntity();
+        registry.addComponents(
+            right_wall,
+            cTransform{ .pos = { 30.0f, 0.0f } },
+            cBoxCollider{ .size = { 10.0f, 100.0f } }
+        );
+        Entity bottom_wall = registry.createEntity();
+        registry.addComponents(
+            bottom_wall,
+            cTransform{ .pos = { 0.0f, 30.0f } },
+            cBoxCollider{ .size = { 100.0f, 10.0f } }
+        );
+
+        // Light body already stuck in bottom-right corner at (20, 20)
+        Entity cornered = registry.createEntity();
+        registry.addComponents(
+            cornered,
+            cTransform{ .pos = { 20.0f, 20.0f } },
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 1.0f }
+        );
+
+        // Heavy body pushing diagonally toward cornered body over many ticks
+        Entity pusher = registry.createEntity();
+        registry.addComponents(
+            pusher,
+            cTransform{ .pos = { 5.0f, 20.0f } },
+            cVelocity{ .x = 200.0f, .y = 200.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+
+        for (int tick = 0; tick < 20; ++tick) {
+            auto& vel = registry.getComponent<cVelocity>(pusher);
+            vel.x = 200.0f;
+            vel.y = 200.0f;
+
+            CollisionSystem::fixedUpdate(registry, dt);
+            MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+            const auto& pusher_pos =
+                registry.getComponent<cTransform>(pusher).pos;
+            const auto& cornered_pos =
+                registry.getComponent<cTransform>(cornered).pos;
+
+            CHECK(cornered_pos.x <= 20.0f + 1e-3f);
+            CHECK(cornered_pos.y <= 20.0f + 1e-3f);
+            CHECK(pusher_pos.x <= cornered_pos.x - 10.0f + 1e-3f);
+            CHECK(pusher_pos.y <= 20.0f + 1e-3f);
+        }
+    }
+
+    SECTION("Chain of dynamic bodies pinned against a wall does not overlap")
+    {
+        Entity wall = registry.createEntity();
+        registry.addComponents(
+            wall,
+            cTransform{ .pos = { 40.0f, 0.0f } },
+            cBoxCollider{ .size = { 10.0f, 100.0f } } // left face at x = 35
+        );
+
+        Entity body_a = registry.createEntity();
+        Entity body_b = registry.createEntity();
+        Entity body_c = registry.createEntity();
+        registry.addComponents(
+            body_a,
+            cTransform{ .pos = { 5.0f, 0.0f } },
+            cVelocity{ .x = 200.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 10.0f }
+        );
+        registry.addComponents(
+            body_b,
+            cTransform{ .pos = { 20.0f, 0.0f } },
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 1.0f }
+        );
+        registry.addComponents(
+            body_c,
+            cTransform{ .pos = { 30.0f, 0.0f } }, // flush against wall at x = 35
+            cVelocity{ .x = 0.0f, .y = 0.0f },
+            cBoxCollider{ .size = { 10.0f, 10.0f } },
+            cDynamicBody{ .mass = 1.0f }
+        );
+
+        for (int tick = 0; tick < 10; ++tick) {
+            registry.getComponent<cVelocity>(body_a).x = 200.0f;
+            CollisionSystem::fixedUpdate(registry, dt);
+            MovementSystem::fixedUpdate(registry, dt, nullptr);
+
+            float ax = registry.getComponent<cTransform>(body_a).pos.x;
+            float bx = registry.getComponent<cTransform>(body_b).pos.x;
+            float cx = registry.getComponent<cTransform>(body_c).pos.x;
+
+            CHECK(cx <= 30.0f + 1e-3f);
+            CHECK(bx <= cx - 10.0f + 1e-3f);
+            CHECK(ax <= bx - 10.0f + 1e-3f);
+        }
     }
 }

@@ -7,14 +7,17 @@ smth else.
 
 ### TODO
 
-- Sys: CollisionSystem
-- Sys: FrictionSystem
-- Sys: MovementSystem
+- Rework physics architecture:
+  - Remove `cGravity` / `GravitySystem` and `cFriction` / `FrictionSystem` (keep
+    game-side).
+  - Replace `air_drag` / `cFriction` / `contact_friction` with a single `Vec2 damping`
+    on `cDynamicBody` (apply unconditionally without checking `grounded`, and update
+    `hello_physics` so touching the bottom border behaves like the other walls).
+  - Replace `cDynamicBody::grounded` with 4-way contact flags (`top/bottom/left/right`).
+  - Fix `DynamicBodySystem` (`force` scaled by `dt / mass` and reset, `impulse`
+    divided by `mass`).
 
 ### IN PROGRESS
-
-- Sys: DynamicBodySystem
-- Sys: GravitySystem (Tests needed)
 
 ## KEEP FOR LATER
 

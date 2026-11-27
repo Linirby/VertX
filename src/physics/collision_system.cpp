@@ -7,266 +7,255 @@
 #include "lili2d/ecs/ecs_view.hpp"
 #include "lili2d/geometry/vec2.hpp"
 #include "lili2d/physics/aabb_collider.hpp"
+#include "physics/collision_helper.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
-#include <limits>
+#include <cstdint>
 #include <vector>
 
 namespace lili {
 
 namespace {
 
-struct SweepHit
-{
-    bool hit = false;
-    float t = 1.0f;
-    Vec2 normal = {};
-};
+using detail::BlockedSide;
+using detail::computeOverlap;
+using detail::detectTouchingStaticSides;
+using detail::isBlockedInDirection;
+using detail::makeWorldAABB;
+using detail::sideInDirection;
+using detail::sweepAABB;
+using detail::SweepHit;
 
 struct Mover
 {
-    cTransform* trans;
-    cVelocity* vel;
-    const cBoxCollider* box;
+    cTransform* transform;
+    cVelocity* velocity;
+    const cBoxCollider* collider;
     cDynamicBody* body;
+    uint8_t blocked_sides = BlockedSide::NONE;
 };
 
 [[nodiscard]] float
-invMass(const cDynamicBody* body) noexcept
+inverseMass(const cDynamicBody* body) noexcept
 {
     return (body && body->mass > 0.0f) ? 1.0f / body->mass : 1.0f;
 }
 
-[[nodiscard]] AABB2
-makeWorldAABB(const cTransform& trans, const cBoxCollider& box) noexcept
-{
-    auto apply_scale = [](Vec2 target, Vec2 scale) -> Vec2 {
-        return { target.x * std::abs(scale.x), target.y * std::abs(scale.y) };
-    };
-    auto target_size = apply_scale(box.size, trans.scale);
-    Vec2 target_offset = apply_scale(box.offset, trans.scale);
-    return AABB2((trans.pos + target_offset) - target_size * 0.5f, target_size);
-}
-
-[[nodiscard]] bool
-sweepAxis(
-    float origin,
-    float delta,
-    float min,
-    float max,
-    float& t_near,
-    float& t_far
-) noexcept
-{
-    if (delta == 0.0f)
-        return origin > min && origin < max;
-
-    t_near = (min - origin) / delta;
-    t_far = (max - origin) / delta;
-    if (t_near > t_far)
-        std::swap(t_near, t_far);
-    return true;
-}
-
-[[nodiscard]] SweepHit
-sweepAABB(const AABB2& moving, Vec2 delta, const AABB2& target) noexcept
-{
-    if (delta.x == 0.0f && delta.y == 0.0f)
-        return {};
-
-    Vec2 origin = (moving.min + moving.max) * 0.5f;
-    Vec2 half = (moving.max - moving.min) * 0.5f;
-    Vec2 exp_min = target.min - half;
-    Vec2 exp_max = target.max + half;
-
-    constexpr float inf = std::numeric_limits<float>::infinity();
-    float nx = -inf, fx = inf;
-    float ny = -inf, fy = inf;
-
-    if (!sweepAxis(origin.x, delta.x, exp_min.x, exp_max.x, nx, fx) ||
-        !sweepAxis(origin.y, delta.y, exp_min.y, exp_max.y, ny, fy))
-        return {};
-
-    float t_enter = std::max(nx, ny);
-    float t_exit = std::min(fx, fy);
-    if (t_enter >= t_exit || t_exit <= 0.0f || t_enter < 0.0f ||
-        t_enter >= 1.0f)
-        return {};
-
-    Vec2 normal = (nx > ny) ? Vec2((delta.x > 0.0f) ? -1.0f : 1.0f, 0.0f)
-                            : Vec2(0.0f, (delta.y > 0.0f) ? -1.0f : 1.0f);
-    return { true, t_enter, normal };
-}
-
-[[nodiscard]] bool
-computeOverlap(
-    const AABB2& a,
-    const AABB2& b,
-    Vec2& normal,
-    float& depth
-) noexcept
-{
-    if (!a.overlaps(b))
-        return false;
-
-    float ox = std::min(a.max.x, b.max.x) - std::max(a.min.x, b.min.x);
-    float oy = std::min(a.max.y, b.max.y) - std::max(a.min.y, b.min.y);
-    Vec2 diff = (a.min + a.max) - (b.min + b.max);
-
-    if (ox < oy) {
-        normal = { (diff.x < 0.0f) ? -1.0f : 1.0f, 0.0f };
-        depth = ox;
-    } else {
-        normal = { 0.0f, (diff.y < 0.0f) ? -1.0f : 1.0f };
-        depth = oy;
-    }
-    return true;
-}
-
 void
 resolveAgainstStatic(
-    Mover& m,
+    Mover& mover,
     const std::vector<AABB2>& static_boxes,
     float dt
 ) noexcept
 {
-    for (const AABB2& target : static_boxes) {
-        Vec2 normal;
-        float depth = 0.0f;
-        const AABB2& mover_aabb = makeWorldAABB(*m.trans, *m.box);
-        if (!computeOverlap(mover_aabb, target, normal, depth))
+    // 1. Push out of any static box we are already overlapping.
+    for (const AABB2& wall : static_boxes) {
+        Vec2 push_normal;
+        float overlap_depth = 0.0f;
+        AABB2 mover_box = makeWorldAABB(*mover.transform, *mover.collider);
+        if (!computeOverlap(mover_box, wall, push_normal, overlap_depth))
             continue;
 
-        m.trans->pos += normal * depth;
-        Vec2 v(m.vel->x, m.vel->y);
-        float vn = v.dot(normal);
-        if (vn < 0.0f) {
-            v -= normal * vn;
-            m.vel->x = v.x;
-            m.vel->y = v.y;
+        mover.transform->pos += push_normal * overlap_depth;
+        mover.blocked_sides |= sideInDirection(-push_normal);
+
+        Vec2 velocity(mover.velocity->x, mover.velocity->y);
+        float speed_along_normal = velocity.dot(push_normal);
+        if (speed_along_normal < 0.0f) {
+            velocity -= push_normal * speed_along_normal;
+            mover.velocity->x = velocity.x;
+            mover.velocity->y = velocity.y;
         }
-        if (normal.y < 0.0f && m.body)
-            m.body->grounded = true;
+        if (push_normal.y < 0.0f && mover.body)
+            mover.body->grounded = true;
     }
 
-    for (int i = 0; i < 3; ++i) {
-        AABB2 moving = makeWorldAABB(*m.trans, *m.box);
-        Vec2 delta = Vec2(m.vel->x, m.vel->y) * dt;
+    // 2. Sweep along this tick's movement (up to 3 passes for corners).
+    for (int pass = 0; pass < 3; ++pass) {
+        AABB2 mover_box = makeWorldAABB(*mover.transform, *mover.collider);
+        Vec2 movement_delta = Vec2(mover.velocity->x, mover.velocity->y) * dt;
 
-        SweepHit earliest;
-        for (const AABB2& target : static_boxes) {
-            SweepHit hit = sweepAABB(moving, delta, target);
-            if (hit.hit && hit.t < earliest.t)
-                earliest = hit;
+        SweepHit earliest_hit;
+        for (const AABB2& wall : static_boxes) {
+            SweepHit candidate = sweepAABB(mover_box, movement_delta, wall);
+            if (candidate.hit &&
+                candidate.hit_fraction < earliest_hit.hit_fraction)
+                earliest_hit = candidate;
         }
-        if (!earliest.hit)
+        if (!earliest_hit.hit)
             break;
 
-        Vec2 v(m.vel->x, m.vel->y);
-        float vn = v.dot(earliest.normal);
-        if (vn >= 0.0f)
+        Vec2 velocity(mover.velocity->x, mover.velocity->y);
+        float speed_along_normal = velocity.dot(earliest_hit.normal);
+        if (speed_along_normal >= 0.0f)
             break;
 
-        if (earliest.normal.y < 0.0f && m.body)
-            m.body->grounded = true;
+        mover.blocked_sides |= sideInDirection(-earliest_hit.normal);
+        if (earliest_hit.normal.y < 0.0f && mover.body)
+            mover.body->grounded = true;
 
-        float bounce = m.body ? m.body->bounciness : 0.0f;
-        if (bounce > 0.0f) {
-            m.trans->pos += earliest.normal * (vn * dt * earliest.t);
-            v -= earliest.normal * ((1.0f + bounce) * vn);
-        } else
-            v -= earliest.normal * (vn * (1.0f - earliest.t));
-
-        if (m.body && m.body->contact_friction > 0.0f) {
-            Vec2 tangent(-earliest.normal.y, earliest.normal.x);
-            float damp = std::exp(-m.body->contact_friction * dt);
-            v -= tangent * (v.dot(tangent) * (1.0f - damp));
+        float bounciness = mover.body ? mover.body->bounciness : 0.0f;
+        if (bounciness > 0.0f) {
+            mover.transform->pos +=
+                earliest_hit.normal *
+                (speed_along_normal * dt * earliest_hit.hit_fraction);
+            velocity -= earliest_hit.normal *
+                        ((1.0f + bounciness) * speed_along_normal);
+        } else {
+            velocity -=
+                earliest_hit.normal *
+                (speed_along_normal * (1.0f - earliest_hit.hit_fraction));
         }
 
-        m.vel->x = v.x;
-        m.vel->y = v.y;
+        if (mover.body && mover.body->contact_friction > 0.0f) {
+            Vec2 tangent(-earliest_hit.normal.y, earliest_hit.normal.x);
+            float damping_factor = std::exp(-mover.body->contact_friction * dt);
+            velocity -=
+                tangent * (velocity.dot(tangent) * (1.0f - damping_factor));
+        }
+
+        mover.velocity->x = velocity.x;
+        mover.velocity->y = velocity.y;
     }
 }
 
 void
-applyPairImpulse(Mover& a, Mover& b, Vec2 normal, float scale) noexcept
+applyPairImpulse(
+    Mover& mover_a,
+    Mover& mover_b,
+    Vec2 push_normal,
+    float impulse_scale,
+    float share_a,
+    float share_b
+) noexcept
 {
-    float ima = invMass(a.body);
-    float imb = invMass(b.body);
-    Vec2 rv(a.vel->x - b.vel->x, a.vel->y - b.vel->y);
-    float vn = rv.dot(normal);
-    if (vn >= 0.0f)
+    Vec2 relative_velocity(
+        mover_a.velocity->x - mover_b.velocity->x,
+        mover_a.velocity->y - mover_b.velocity->y
+    );
+    float approach_speed = relative_velocity.dot(push_normal);
+    if (approach_speed >= 0.0f)
         return;
 
-    float j = -scale * vn / (ima + imb);
-    a.vel->x += normal.x * (j * ima);
-    a.vel->y += normal.y * (j * ima);
-    b.vel->x -= normal.x * (j * imb);
-    b.vel->y -= normal.y * (j * imb);
+    float velocity_change = -impulse_scale * approach_speed;
+    mover_a.velocity->x += push_normal.x * (velocity_change * share_a);
+    mover_a.velocity->y += push_normal.y * (velocity_change * share_a);
+    mover_b.velocity->x -= push_normal.x * (velocity_change * share_b);
+    mover_b.velocity->y -= push_normal.y * (velocity_change * share_b);
 }
 
 void
-resolveDynamicPair(Mover& a, Mover& b, float dt) noexcept
+resolveDynamicPair(Mover& mover_a, Mover& mover_b, float dt) noexcept
 {
-    AABB2 box_a = makeWorldAABB(*a.trans, *a.box);
-    AABB2 box_b = makeWorldAABB(*b.trans, *b.box);
+    AABB2 box_a = makeWorldAABB(*mover_a.transform, *mover_a.collider);
+    AABB2 box_b = makeWorldAABB(*mover_b.transform, *mover_b.collider);
 
-    float ima = invMass(a.body);
-    float imb = invMass(b.body);
-    float inv_sum = ima + imb;
+    // Compute each body's share of the push along push_normal (push_normal
+    // pushes A forward and B backward; a body pinned against a static wall in
+    // its push direction gets 0 share, like infinite mass).
+    auto compute_shares =
+        [&](Vec2 push_normal, float& share_a, float& share_b) -> bool {
+        bool a_blocked =
+            isBlockedInDirection(mover_a.blocked_sides, push_normal);
+        bool b_blocked =
+            isBlockedInDirection(mover_b.blocked_sides, -push_normal);
 
-    Vec2 normal;
-    float depth = 0.0f;
-    if (computeOverlap(box_a, box_b, normal, depth)) {
-        a.trans->pos += normal * (depth * (ima / inv_sum));
-        b.trans->pos -= normal * (depth * (imb / inv_sum));
+        // Propagate pinning through chains of touching dynamic bodies.
+        if (b_blocked)
+            mover_a.blocked_sides |= sideInDirection(-push_normal);
+        if (a_blocked)
+            mover_b.blocked_sides |= sideInDirection(push_normal);
 
-        if (normal.y < 0.0f && a.body)
-            a.body->grounded = true;
-        if (normal.y > 0.0f && b.body)
-            b.body->grounded = true;
+        float inv_mass_a = a_blocked ? 0.0f : inverseMass(mover_a.body);
+        float inv_mass_b = b_blocked ? 0.0f : inverseMass(mover_b.body);
+        float inv_mass_sum = inv_mass_a + inv_mass_b;
+        if (inv_mass_sum <= 0.0f)
+            return false;
 
-        applyPairImpulse(a, b, normal, 1.0f);
+        share_a = inv_mass_a / inv_mass_sum;
+        share_b = inv_mass_b / inv_mass_sum;
+        return true;
+    };
+
+    // 1. If already overlapping, separate them using effective mass shares.
+    Vec2 push_normal;
+    float overlap_depth = 0.0f;
+    if (computeOverlap(box_a, box_b, push_normal, overlap_depth)) {
+        if (push_normal.y < 0.0f && mover_a.body)
+            mover_a.body->grounded = true;
+        if (push_normal.y > 0.0f && mover_b.body)
+            mover_b.body->grounded = true;
+
+        float share_a = 0.0f;
+        float share_b = 0.0f;
+        if (!compute_shares(push_normal, share_a, share_b))
+            return;
+
+        mover_a.transform->pos += push_normal * (overlap_depth * share_a);
+        mover_b.transform->pos -= push_normal * (overlap_depth * share_b);
+
+        applyPairImpulse(mover_a, mover_b, push_normal, 1.0f, share_a, share_b);
         return;
     }
 
-    Vec2 rv(a.vel->x - b.vel->x, a.vel->y - b.vel->y);
-    SweepHit hit = sweepAABB(box_a, rv * dt, box_b);
-    if (!hit.hit || rv.dot(hit.normal) >= 0.0f)
+    // 2. Otherwise sweep A relative to B to catch impacts before they overlap.
+    Vec2 relative_velocity(
+        mover_a.velocity->x - mover_b.velocity->x,
+        mover_a.velocity->y - mover_b.velocity->y
+    );
+    SweepHit sweep_hit = sweepAABB(box_a, relative_velocity * dt, box_b);
+    if (!sweep_hit.hit || relative_velocity.dot(sweep_hit.normal) >= 0.0f)
         return;
 
-    if (hit.normal.y < 0.0f && a.body)
-        a.body->grounded = true;
-    if (hit.normal.y > 0.0f && b.body)
-        b.body->grounded = true;
+    if (sweep_hit.normal.y < 0.0f && mover_a.body)
+        mover_a.body->grounded = true;
+    if (sweep_hit.normal.y > 0.0f && mover_b.body)
+        mover_b.body->grounded = true;
 
-    float bounce = std::max(
-        a.body ? a.body->bounciness : 0.0f, b.body ? b.body->bounciness : 0.0f
+    float share_a = 0.0f;
+    float share_b = 0.0f;
+    if (!compute_shares(sweep_hit.normal, share_a, share_b))
+        return;
+
+    float bounciness = std::max(
+        mover_a.body ? mover_a.body->bounciness : 0.0f,
+        mover_b.body ? mover_b.body->bounciness : 0.0f
     );
-    if (bounce > 0.0f) {
-        Vec2 va(a.vel->x, a.vel->y);
-        Vec2 vb(b.vel->x, b.vel->y);
-        a.trans->pos += hit.normal * (va.dot(hit.normal) * dt * hit.t);
-        b.trans->pos += hit.normal * (vb.dot(hit.normal) * dt * hit.t);
+    if (bounciness > 0.0f) {
+        Vec2 velocity_a(mover_a.velocity->x, mover_a.velocity->y);
+        Vec2 velocity_b(mover_b.velocity->x, mover_b.velocity->y);
+        if (share_a > 0.0f) {
+            mover_a.transform->pos +=
+                sweep_hit.normal * (velocity_a.dot(sweep_hit.normal) * dt *
+                                    sweep_hit.hit_fraction);
+        }
+        if (share_b > 0.0f) {
+            mover_b.transform->pos +=
+                sweep_hit.normal * (velocity_b.dot(sweep_hit.normal) * dt *
+                                    sweep_hit.hit_fraction);
+        }
     }
 
-    float scale = (bounce > 0.0f) ? (1.0f + bounce) : (1.0f - hit.t);
-    applyPairImpulse(a, b, hit.normal, scale);
-
-    float friction = std::max(
-        a.body ? a.body->contact_friction : 0.0f,
-        b.body ? b.body->contact_friction : 0.0f
+    float impulse_scale = (bounciness > 0.0f) ? (1.0f + bounciness)
+                                              : (1.0f - sweep_hit.hit_fraction);
+    applyPairImpulse(
+        mover_a, mover_b, sweep_hit.normal, impulse_scale, share_a, share_b
     );
-    if (friction > 0.0f) {
-        Vec2 tangent(-hit.normal.y, hit.normal.x);
-        float jt =
-            -rv.dot(tangent) * (1.0f - std::exp(-friction * dt)) / inv_sum;
-        a.vel->x += tangent.x * (jt * ima);
-        a.vel->y += tangent.y * (jt * ima);
-        b.vel->x -= tangent.x * (jt * imb);
-        b.vel->y -= tangent.y * (jt * imb);
+
+    float contact_friction = std::max(
+        mover_a.body ? mover_a.body->contact_friction : 0.0f,
+        mover_b.body ? mover_b.body->contact_friction : 0.0f
+    );
+    if (contact_friction > 0.0f) {
+        Vec2 tangent(-sweep_hit.normal.y, sweep_hit.normal.x);
+        float tangent_speed = relative_velocity.dot(tangent);
+        float tangent_change =
+            -tangent_speed * (1.0f - std::exp(-contact_friction * dt));
+        mover_a.velocity->x += tangent.x * (tangent_change * share_a);
+        mover_a.velocity->y += tangent.y * (tangent_change * share_a);
+        mover_b.velocity->x -= tangent.x * (tangent_change * share_b);
+        mover_b.velocity->y -= tangent.y * (tangent_change * share_b);
     }
 }
 
@@ -284,39 +273,59 @@ CollisionSystem::fixedUpdate(ECSRegistry& registry, float dt)
 
     std::vector<AABB2> static_boxes;
     ECSView<cTransform, cBoxCollider>(registry).each(
-        [&](Entity e, const cTransform& trans, const cBoxCollider& box) {
-            if (box.physical && !registry.hasComponent<cVelocity>(e))
-                static_boxes.push_back(makeWorldAABB(trans, box));
+        [&](Entity entity,
+            const cTransform& transform,
+            const cBoxCollider& collider) {
+            if (collider.physical && !registry.hasComponent<cVelocity>(entity))
+                static_boxes.push_back(makeWorldAABB(transform, collider));
         }
     );
 
     std::vector<Mover> movers;
     ECSView<cTransform, cVelocity, cBoxCollider>(registry).each(
-        [&](
-            Entity e, cTransform& trans, cVelocity& vel, const cBoxCollider& box
-        ) {
-            if (!box.physical)
+        [&](Entity entity,
+            cTransform& transform,
+            cVelocity& velocity,
+            const cBoxCollider& collider) {
+            if (!collider.physical)
                 return;
-            auto* body = registry.hasComponent<cDynamicBody>(e)
-                             ? &registry.getComponent<cDynamicBody>(e)
+            auto* body = registry.hasComponent<cDynamicBody>(entity)
+                             ? &registry.getComponent<cDynamicBody>(entity)
                              : nullptr;
-            movers.push_back({ &trans, &vel, &box, body });
+            movers.push_back(
+                { &transform, &velocity, &collider, body, BlockedSide::NONE }
+            );
         }
     );
     if (movers.empty())
         return;
 
-    if (!static_boxes.empty())
-        for (Mover& m : movers)
-            resolveAgainstStatic(m, static_boxes, dt);
+    if (!static_boxes.empty()) {
+        for (Mover& mover : movers) {
+            resolveAgainstStatic(mover, static_boxes, dt);
+            mover.blocked_sides |= detectTouchingStaticSides(
+                makeWorldAABB(*mover.transform, *mover.collider), static_boxes
+            );
+        }
+    }
 
-    for (size_t i = 0; i < movers.size(); ++i)
-        for (size_t j = i + 1; j < movers.size(); ++j)
-            resolveDynamicPair(movers[i], movers[j], dt);
+    constexpr int solver_iterations = 4;
+    for (int iteration = 0; iteration < solver_iterations; ++iteration) {
+        for (size_t i = 0; i < movers.size(); ++i) {
+            for (size_t j = i + 1; j < movers.size(); ++j)
+                resolveDynamicPair(movers[i], movers[j], dt);
+        }
 
-    if (!static_boxes.empty())
-        for (Mover& m : movers)
-            resolveAgainstStatic(m, static_boxes, dt);
+        if (!static_boxes.empty()) {
+            for (Mover& mover : movers) {
+                resolveAgainstStatic(mover, static_boxes, dt);
+                mover.blocked_sides |= detectTouchingStaticSides(
+                    makeWorldAABB(*mover.transform, *mover.collider),
+                    static_boxes
+                );
+            }
+        }
+    }
 }
 
 } // namespace lili

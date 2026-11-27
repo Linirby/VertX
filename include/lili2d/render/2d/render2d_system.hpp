@@ -139,10 +139,10 @@ private:
         const DrawItem& item_a = items[idx_a];
         const DrawItem& item_b = items[idx_b];
 
-        if (item_a.render_pass != item_b.render_pass)
-            return item_a.render_pass < item_b.render_pass;
         if (item_a.layer != item_b.layer)
             return item_a.layer < item_b.layer;
+        if (item_a.render_pass != item_b.render_pass)
+            return item_a.render_pass < item_b.render_pass;
         if (item_a.material_id != item_b.material_id)
             return item_a.material_id < item_b.material_id;
         if (item_a.entity != item_b.entity)
@@ -153,8 +153,8 @@ private:
     static bool
     shouldFlush(const DrawItem& item)
     {
-        return current_render_pass != item.render_pass ||
-               current_layer != item.layer ||
+        return current_layer != item.layer ||
+               current_render_pass != item.render_pass ||
                current_material_id != item.material_id ||
                current_texture != item.texture;
     }

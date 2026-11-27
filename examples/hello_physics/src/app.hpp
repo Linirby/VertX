@@ -17,8 +17,7 @@ public:
     }
 
 private:
-    const float GROUND_ACCEL = 300.0f;
-    const float AIR_ACCEL = 90.0f;
+    const float ACCEL = 50.0f;
 
     lili::Mouse mouse;
     lili::Vec2 start_impulse_pos = { 0.0f, 0.0f };
@@ -28,6 +27,7 @@ private:
     lili::Entity blue_box;
 
     lili::Camera camera;
+    lili::Entity intruction_text;
 
     void
     onInit() override;
