@@ -2,8 +2,6 @@
 
 #include <lili2d/components/box_collider.hpp>
 #include <lili2d/components/dynamic_body.hpp>
-#include <lili2d/components/friction.hpp>
-#include <lili2d/components/gravity.hpp>
 #include <lili2d/components/transform.hpp>
 #include <lili2d/components/ui_layout.hpp>
 #include <lili2d/components/velocity.hpp>
@@ -21,8 +19,6 @@
 #include <lili2d/physics/aabb_collider.hpp>
 #include <lili2d/physics/collision_system.hpp>
 #include <lili2d/physics/dynamic_body_system.hpp>
-#include <lili2d/physics/friction_system.hpp>
-#include <lili2d/physics/gravity_system.hpp>
 #include <lili2d/physics/movement_system.hpp>
 #include <lili2d/render/gpu/pass_types.hpp>
 
@@ -213,9 +209,7 @@ Game::onFixedUpdate(float dt)
     auto& ecs_reg = getECSRegistry();
     auto* thread_pool = getThreadPool();
 
-    lili::GravitySystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::DynamicBodySystem::fixedUpdate(ecs_reg, dt, thread_pool);
-    // lili::FrictionSystem::fixedUpdate(ecs_reg, dt, thread_pool);
     lili::CollisionSystem::fixedUpdate(ecs_reg, dt);
     lili::MovementSystem::fixedUpdate(ecs_reg, dt, thread_pool);
 }

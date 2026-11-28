@@ -15,8 +15,7 @@ MovementSystem::fixedUpdate(
 )
 {
     ECSView<cVelocity, cTransform>(registry).parallelEach(
-        thread_pool,
-        [dt](Entity, cVelocity& vel, cTransform& trans) {
+        thread_pool, [dt](Entity, cVelocity& vel, cTransform& trans) {
             trans.prev_pos = trans.pos;
             trans.pos += Vec2(vel.x, vel.y) * dt;
         }

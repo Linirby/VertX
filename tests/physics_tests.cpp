@@ -727,7 +727,8 @@ TEST_CASE("CollisionSystem Dynamic vs Dynamic", "[physics][collision]")
         );
         registry.addComponents(
             body_c,
-            cTransform{ .pos = { 30.0f, 0.0f } }, // flush against wall at x = 35
+            cTransform{
+                .pos = { 30.0f, 0.0f } }, // flush against wall at x = 35
             cVelocity{ .x = 0.0f, .y = 0.0f },
             cBoxCollider{ .size = { 10.0f, 10.0f } },
             cDynamicBody{ .mass = 1.0f }

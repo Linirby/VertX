@@ -16,8 +16,7 @@ DynamicBodySystem::fixedUpdate(
 )
 {
     ECSView<cDynamicBody, cVelocity>(registry).parallelEach(
-        thread_pool,
-        [dt](Entity, cDynamicBody& body, cVelocity& vel) {
+        thread_pool, [dt](Entity, cDynamicBody& body, cVelocity& vel) {
             vel.x += body.force.x;
             vel.y += body.force.y;
 

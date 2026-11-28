@@ -17,7 +17,7 @@ public:
     }
 
 private:
-    const float ACCEL = 50.0f;
+    const float ACCEL = 75.0f;
 
     lili::Mouse mouse;
     lili::Vec2 start_impulse_pos = { 0.0f, 0.0f };
