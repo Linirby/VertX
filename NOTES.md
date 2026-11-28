@@ -9,8 +9,6 @@ smth else.
 
 - Rework physics architecture:
   - Replace `cDynamicBody::grounded` with 4-way contact flags (`top/bottom/left/right`).
-  - Fix `DynamicBodySystem` (`force` scaled by `dt / mass` and reset, `impulse`
-    divided by `mass`).
 
 ### IN PROGRESS
 
