@@ -50,7 +50,7 @@ Game::onInit()
     ecs_reg.addComponents(
         test_entity,
         lili::cVelocity{},
-        lili::cDynamicBody{},
+        lili::cDynamicBody{ .damping = DAMPING },
         lili::cBoxCollider{ .size = lili::Vec2(50.0f, 50.0f) }
     );
 
@@ -112,7 +112,7 @@ Game::onInit()
     ecs_reg.addComponents(
         blue_box,
         lili::cVelocity{},
-        lili::cDynamicBody{ .mass = 1.0f },
+        lili::cDynamicBody{ .damping = DAMPING, .mass = 1.0f },
         lili::cBoxCollider{ .size = lili::Vec2(50.0f, 50.0f) }
     );
 

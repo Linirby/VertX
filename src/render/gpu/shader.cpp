@@ -10,14 +10,21 @@ namespace lili {
 static void
 ensureShaderCrossInit()
 {
-    static bool initialized = []() {
-        if (!SDL_ShaderCross_Init())
-            throw std::runtime_error(
-                "SDL_ShaderCross_Init failed: " + std::string(SDL_GetError())
-            );
-        return true;
-    }();
-    (void)initialized;
+    struct ShaderCrossGuard
+    {
+        ShaderCrossGuard()
+        {
+            if (!SDL_ShaderCross_Init())
+                throw std::runtime_error(
+                    "SDL_ShaderCross_Init failed: " +
+                    std::string(SDL_GetError())
+                );
+        }
+
+        ~ShaderCrossGuard() { SDL_ShaderCross_Quit(); }
+    };
+
+    static ShaderCrossGuard guard;
 }
 
 std::string

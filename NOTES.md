@@ -14,17 +14,6 @@ smth else.
 
 ### IN PROGRESS
 
-- Rework physics architecture:
-  - Replace `air_drag` / `cFriction` / `contact_friction` with a single `Vec2 damping`
-    on `cDynamicBody` (apply unconditionally without checking `grounded`, and update
-    `hello_physics` so touching the bottom border behaves like the other walls).
-
-### LAST DONE
-
-- Rework physics architecture:
-  - Remove `cGravity` / `GravitySystem` and `cFriction` / `FrictionSystem` (keep
-    game-side).
-
 ## KEEP FOR LATER
 
 - Build new TileMap2D system, the last was based on an old 3d project, and it was

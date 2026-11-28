@@ -24,11 +24,10 @@ DynamicBodySystem::fixedUpdate(
             vel.y += body.impulse.y;
             body.impulse = {};
 
-            if (body.air_drag > 0.0f && !body.grounded) {
-                float damp = std::exp(-body.air_drag * dt);
-                vel.x *= damp;
-                vel.y *= damp;
-            }
+            if (body.damping.x > 0.0f)
+                vel.x *= std::exp(-body.damping.x * dt);
+            if (body.damping.y > 0.0f)
+                vel.y *= std::exp(-body.damping.y * dt);
         }
     );
 }

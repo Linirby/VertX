@@ -9,9 +9,8 @@ struct cDynamicBody
 {
     Vec2 force = {};               ///< Force accumulator
     Vec2 impulse = {};             ///< Impulse accumulator
-    float air_drag = 1.0f;         ///< Air drag / damping
+    Vec2 damping = { 0.0f, 0.0f }; ///< Damping on both axes
     float bounciness = 0.0f;       ///< Restitution (0: no bounce, 1: elastic)
-    float contact_friction = 0.0f; ///< Friction when there's a contact
     float mass = 10.0f;            ///< Basically the mass :3
     bool grounded = false;         ///< Flags that says when on the ground
 };

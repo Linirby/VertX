@@ -345,8 +345,10 @@ TEST_CASE("CollisionSystem Dynamic vs Static", "[physics][collision]")
         registry.addComponents(
             player,
             cTransform{ .pos = { 0.0f, 75.0f } },
-            cVelocity{ .x = 0.0f,
-                       .y = 100.0f }, // delta.y = 10 px -> hits at t = 0.5
+            cVelocity{
+                .x = 0.0f,
+                .y = 100.0f,
+            }, // delta.y = 10 px -> hits at t = 0.5
             cBoxCollider{ .offset = { 0.0f, 0.0f }, .size = { 20.0f, 20.0f } },
             cDynamicBody{}
         );

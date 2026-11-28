@@ -108,11 +108,18 @@ resolveAgainstStatic(
                 (speed_along_normal * (1.0f - earliest_hit.hit_fraction));
         }
 
-        if (mover.body && mover.body->contact_friction > 0.0f) {
+        if (mover.body) {
             Vec2 tangent(-earliest_hit.normal.y, earliest_hit.normal.x);
-            float damping_factor = std::exp(-mover.body->contact_friction * dt);
-            velocity -=
-                tangent * (velocity.dot(tangent) * (1.0f - damping_factor));
+            float dot_res = velocity.dot(tangent);
+
+            if (mover.body->damping.x > 0.0f) {
+                float damping_factor_x = std::exp(-mover.body->damping.x * dt);
+                velocity.x -= tangent.x * (dot_res * (1.0f - damping_factor_x));
+            }
+            if (mover.body->damping.y > 0.0f) {
+                float damping_factor_y = std::exp(-mover.body->damping.y * dt);
+                velocity.y -= tangent.y * (dot_res * (1.0f - damping_factor_y));
+            }
         }
 
         mover.velocity->x = velocity.x;
@@ -243,19 +250,29 @@ resolveDynamicPair(Mover& mover_a, Mover& mover_b, float dt) noexcept
         mover_a, mover_b, sweep_hit.normal, impulse_scale, share_a, share_b
     );
 
-    float contact_friction = std::max(
-        mover_a.body ? mover_a.body->contact_friction : 0.0f,
-        mover_b.body ? mover_b.body->contact_friction : 0.0f
+    float damp_x = std::max(
+        mover_a.body ? mover_a.body->damping.x : 0.0f,
+        mover_b.body ? mover_b.body->damping.x : 0.0f
     );
-    if (contact_friction > 0.0f) {
+    float damp_y = std::max(
+        mover_a.body ? mover_a.body->damping.y : 0.0f,
+        mover_b.body ? mover_b.body->damping.y : 0.0f
+    );
+    if (damp_x > 0.0f || damp_y > 0.0f) {
         Vec2 tangent(-sweep_hit.normal.y, sweep_hit.normal.x);
         float tangent_speed = relative_velocity.dot(tangent);
-        float tangent_change =
-            -tangent_speed * (1.0f - std::exp(-contact_friction * dt));
-        mover_a.velocity->x += tangent.x * (tangent_change * share_a);
-        mover_a.velocity->y += tangent.y * (tangent_change * share_a);
-        mover_b.velocity->x -= tangent.x * (tangent_change * share_b);
-        mover_b.velocity->y -= tangent.y * (tangent_change * share_b);
+        if (damp_x > 0.0f) {
+            float tangent_change_x =
+                -tangent_speed * (1.0f - std::exp(-damp_x * dt));
+            mover_a.velocity->x += tangent.x * (tangent_change_x * share_a);
+            mover_b.velocity->x -= tangent.x * (tangent_change_x * share_b);
+        }
+        if (damp_y > 0.0f) {
+            float tangent_change_y =
+                -tangent_speed * (1.0f - std::exp(-damp_y * dt));
+            mover_a.velocity->y += tangent.y * (tangent_change_y * share_a);
+            mover_b.velocity->y -= tangent.y * (tangent_change_y * share_b);
+        }
     }
 }
 
